@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NFC Redirect System</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .admin-panel {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 2px solid #e9ecef;
+        }
+        .redirect-page {
+            text-align: center;
+            padding: 40px 20px;
+        }
+        .redirect-page h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .redirect-page p {
+            color: #666;
+            font-size: 18px;
+            margin-bottom: 30px;
+        }
+        .redirect-btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 25px;
+            font-size: 18px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            transition: transform 0.2s;
+        }
+        .redirect-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        select, input, button {
+            padding: 10px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        button {
+            background: #28a745;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #218838;
+        }
+        .link-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .link-table th, .link-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        .link-table th {
+            background: #f2f2f2;
+        }
+        .password-input {
+            margin-bottom: 20px;
+        }
+        .hidden {
+            display: none;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Admin Panel -->
+        <div id="admin-section">
+            <div class="admin-panel">
+                <h2>🔧 Admin Panel - NFC Link Manager</h2>
+                
+                <div class="password-input">
+                    <input type="password" id="adminPassword" placeholder="Enter admin password" value="admin123">
+                    <button onclick="checkPassword()">Login</button>
+                </div>
+                
+                <div id="adminControls" class="hidden">
+                    <h3>Update Bracelet Links</h3>
+                    <div>
+                        <select id="braceletSelect">
+                            <option value="">Select Bracelet</option>
+                        </select>
+                        <select id="affiliateSelect">
+                            <option value="">Select Affiliate</option>
+                        </select>
+                        <button onclick="updateLink()">Update Link</button>
+                    </div>
+                    
+                    <h3>Current Assignments</h3>
+                    <table class="link-table" id="linkTable">
+                        <thead>
+                            <tr>
+                                <th>Bracelet ID</th>
+                                <th>Current Affiliate</th>
+                                <th>Link</th>
+                                <th>Clicks</th>
+                            </tr>
+                        </thead>
+                        <tbody id="linkTableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Redirect Page -->
+        <div id="redirect-section" class="redirect-page">
+            <h1>🎉 Welcome to the Event!</h1>
+            <p>You're about to be redirected to an exclusive offer...</p>
+            <div class="loading" id="loading">
+                <p>Preparing your link...</p>
+            </div>
+            <div id="redirectContent" class="hidden">
+                <a href="#" id="redirectLink" class="redirect-btn">Continue to Offer</a>
+                <p style="margin-top: 20px; font-size: 14px; color: #888;">
+                    Link not working? <a href="#" id="directLink">Click here</a>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Your affiliate links data
+        const affiliateLinks = {
+            'wyatt': 'https://posh.vip/f/298e6?t=wyatt',
+            'tessa': 'https://posh.vip/f/298e6?t=tessa',
+            'vlex': 'https://posh.vip/f/298e6?t=vlex',
+            'corrin': 'https://posh.vip/f/298e6?t=corrin',
+            'rockit': 'https://posh.vip/f/298e6?t=rockitt',
+            'replay': 'https://posh.vip/f/298e6?t=replay',
+            'madison': 'https://posh.vip/f/298e6?t=madison',
+            'tb-0': 'https://posh.vip/f/298e6?t=tb-0',
+            'zachcraft': 'https://posh.vip/f/298e6?t=zachcraft',
+            'estefania': 'https://posh.vip/f/298e6?t=estefania',
+            'estephanie': 'https://posh.vip/f/298e6?t=estephanie',
+            'mark': 'https://posh.vip/f/298e6?t=mark',
+            'kayla': 'https://posh.vip/f/298e6?t=kayla',
+            'natalie': 'https://posh.vip/f/298e6?t=natalie',
+            'roger': 'https://posh.vip/f/298e6?t=roger'
+        };
+
+        // Bracelet assignments (stored in memory - in real use, this would be in a database)
+        let braceletAssignments = {
+            '001': 'wyatt',
+            '002': 'tessa',
+            '003': 'vlex',
+            '004': 'corrin',
+            '005': 'rockit',
+            '006': 'replay',
+            '007': 'madison',
+            '008': 'tb-0',
+            '009': 'zachcraft',
+            '010': 'estefania',
+            '011': 'estephanie',
+            '012': 'mark',
+            '013': 'kayla',
+            '014': 'natalie',
+            '015': 'roger'
+        };
+
+        // Click tracking
+        let clickCounts = {};
+
+        // Initialize click counts
+        Object.keys(braceletAssignments).forEach(id => {
+            clickCounts[id] = 0;
+        });
+
+        // Check if this is an admin view or redirect view
+        const urlParams = new URLSearchParams(window.location.search);
+        const braceletId = urlParams.get('id');
+        const isAdmin = urlParams.get('admin') === 'true';
+
+        function init() {
+            if (isAdmin || !braceletId) {
+                // Show admin panel
+                document.getElementById('redirect-section').style.display = 'none';
+                setupAdminPanel();
+            } else {
+                // Show redirect page
+                document.getElementById('admin-section').style.display = 'none';
+                handleRedirect(braceletId);
+            }
+        }
+
+        function setupAdminPanel() {
+            // Populate bracelet select
+            const braceletSelect = document.getElementById('braceletSelect');
+            Object.keys(braceletAssignments).forEach(id => {
+                const option = document.createElement('option');
+                option.value = id;
+                option.textContent = `Bracelet ${id}`;
+                braceletSelect.appendChild(option);
+            });
+
+            // Populate affiliate select
+            const affiliateSelect = document.getElementById('affiliateSelect');
+            Object.keys(affiliateLinks).forEach(affiliate => {
+                const option = document.createElement('option');
+                option.value = affiliate;
+                option.textContent = affiliate.charAt(0).toUpperCase() + affiliate.slice(1);
+                affiliateSelect.appendChild(option);
+            });
+
+            updateTable();
+        }
+
+        function checkPassword() {
+            const password = document.getElementById('adminPassword').value;
+            if (password === 'admin123') { // Change this password!
+                document.getElementById('adminControls').classList.remove('hidden');
+            } else {
+                alert('Incorrect password');
+            }
+        }
+
+        function updateLink() {
+            const braceletId = document.getElementById('braceletSelect').value;
+            const affiliate = document.getElementById('affiliateSelect').value;
+            
+            if (braceletId && affiliate) {
+                braceletAssignments[braceletId] = affiliate;
+                updateTable();
+                alert(`Bracelet ${braceletId} now points to ${affiliate}'s link`);
+            } else {
+                alert('Please select both bracelet and affiliate');
+            }
+        }
+
+        function updateTable() {
+            const tbody = document.getElementById('linkTableBody');
+            tbody.innerHTML = '';
+            
+            Object.keys(braceletAssignments).forEach(braceletId => {
+                const affiliate = braceletAssignments[braceletId];
+                const row = tbody.insertRow();
+                row.insertCell(0).textContent = braceletId;
+                row.insertCell(1).textContent = affiliate;
+                row.insertCell(2).textContent = affiliateLinks[affiliate];
+                row.insertCell(3).textContent = clickCounts[braceletId] || 0;
+            });
+        }
+
+        function handleRedirect(braceletId) {
+            const affiliate = braceletAssignments[braceletId];
+            
+            if (affiliate && affiliateLinks[affiliate]) {
+                // Track click
+                clickCounts[braceletId] = (clickCounts[braceletId] || 0) + 1;
+                
+                // Show redirect content after 2 seconds
+                setTimeout(() => {
+                    document.getElementById('loading').classList.add('hidden');
+                    document.getElementById('redirectContent').classList.remove('hidden');
+                    
+                    const link = affiliateLinks[affiliate];
+                    document.getElementById('redirectLink').href = link;
+                    document.getElementById('directLink').href = link;
+                    
+                    // Auto redirect after 3 seconds
+                    setTimeout(() => {
+                        window.location.href = link;
+                    }, 3000);
+                }, 2000);
+            } else {
+                document.getElementById('loading').innerHTML = '<p>Invalid bracelet ID. Please contact support.</p>';
+            }
+        }
+
+        // Initialize the page
+        init();
+    </script>
+</body>
+</html>
